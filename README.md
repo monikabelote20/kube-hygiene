@@ -1,7 +1,5 @@
 # kube-hygiene
 
-_Built and maintained with an AI coding agent (Claude, by Anthropic) under the direction of [@monikabelote20](https://github.com/monikabelote20)._
-
 A small, zero-dependency Go CLI that lints Kubernetes workloads for reliability and security gaps.
 
 It reads the JSON that `kubectl get -o json` prints, so it works against a live cluster without
