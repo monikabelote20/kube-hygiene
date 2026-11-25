@@ -18,6 +18,8 @@ type Finding struct {
 // Rule inspects a workload and reports findings.
 type Rule interface {
 	ID() string
+	// Description is a one-line summary used in SARIF rule metadata.
+	Description() string
 	Check(w manifest.Workload) []Finding
 }
 

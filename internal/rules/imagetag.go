@@ -16,6 +16,11 @@ type ImageTag struct{}
 // ID implements Rule.
 func (ImageTag) ID() string { return "image-tag" }
 
+// Description implements Rule.
+func (ImageTag) Description() string {
+	return "Images should be pinned to a tag other than latest, or to a digest"
+}
+
 // Check implements Rule.
 func (r ImageTag) Check(w manifest.Workload) []Finding {
 	var out []Finding

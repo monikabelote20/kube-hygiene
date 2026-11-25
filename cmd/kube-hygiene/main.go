@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/monikabelote20/kube-hygiene/internal/manifest"
+	"github.com/monikabelote20/kube-hygiene/internal/output"
 	"github.com/monikabelote20/kube-hygiene/internal/rules"
 )
 
@@ -24,6 +26,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("kube-hygiene", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	file := fs.String("f", "-", "JSON file to read (- for stdin)")
+	format := fs.String("format", "text", "output format: "+strings.Join(output.Formats, ", "))
 	showVersion := fs.Bool("version", false, "print version and exit")
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -33,7 +36,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return 0
 	}
 
-	in := stdin
+	in, source := stdin, "stdin"
 	if *file != "-" {
 		f, err := os.Open(*file)
 		if err != nil {
@@ -41,7 +44,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			return 2
 		}
 		defer f.Close()
-		in = f
+		in, source = f, *file
 	}
 
 	objects, err := manifest.Decode(in)
@@ -55,10 +58,17 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	findings := rules.Run(rules.Default(), workloads)
-	for _, f := range findings {
-		fmt.Fprintf(stdout, "%-10s %s [%s] %s\n", f.Rule, f.Workload, f.Container, f.Message)
+	enabled := rules.Default()
+	report := output.Report{
+		Source:    source,
+		Workloads: len(workloads),
+		Findings:  rules.Run(enabled, workloads),
+		Rules:     enabled,
+		Version:   version,
 	}
-	fmt.Fprintf(stdout, "\n%d workloads checked, %d findings\n", len(workloads), len(findings))
+	if err := output.Write(stdout, *format, report); err != nil {
+		fmt.Fprintln(stderr, "error:", err)
+		return 2
+	}
 	return 0
 }

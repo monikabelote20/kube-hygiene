@@ -18,6 +18,11 @@ type Resources struct{}
 // ID implements Rule.
 func (Resources) ID() string { return "resources" }
 
+// Description implements Rule.
+func (Resources) Description() string {
+	return "Containers should set CPU and memory requests and a memory limit"
+}
+
 // Check implements Rule.
 func (r Resources) Check(w manifest.Workload) []Finding {
 	var out []Finding

@@ -11,16 +11,33 @@ needing cluster credentials of its own, and against JSON manifests in CI.
 
 ```bash
 kubectl get deploy,sts,ds,cronjob -A -o json | kube-hygiene
+kube-hygiene -f rendered.json -format json
 ```
 
 ```
-resources  Deployment/shop/api [api] missing requests.cpu, limits.memory
-resources  CronJob/ops/backup [backup] missing requests.memory, limits.memory
-image-tag  CronJob/ops/backup [backup] image bitnami/kubectl:latest uses the :latest tag
-probes     Deployment/shop/worker [worker] missing livenessProbe
+image-tag  CronJob/ops/backup      [backup]  image bitnami/kubectl:latest uses the :latest tag
+resources  CronJob/ops/backup      [backup]  missing requests.memory, limits.memory
+resources  Deployment/shop/api     [api]     missing requests.cpu, limits.memory
+probes     Deployment/shop/worker  [worker]  missing livenessProbe
 
 14 workloads checked, 4 findings
 ```
+
+## Output formats
+
+`-format text` (default) prints an aligned table. `-format json` adds a per-rule summary for
+scripts and dashboards. `-format sarif` writes SARIF 2.1.0, which GitHub code scanning can show
+as alerts on the file you linted:
+
+```yaml
+- run: kube-hygiene -f deploy/rendered.json -format sarif > kube-hygiene.sarif
+- uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: kube-hygiene.sarif
+```
+
+Each SARIF result carries a stable fingerprint (rule + workload + container), so alerts are
+tracked across runs instead of reappearing as new.
 
 ## Rules
 

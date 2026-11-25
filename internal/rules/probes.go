@@ -16,6 +16,11 @@ type Probes struct{}
 // ID implements Rule.
 func (Probes) ID() string { return "probes" }
 
+// Description implements Rule.
+func (Probes) Description() string {
+	return "Long-running containers should define readiness and liveness probes"
+}
+
 // Check implements Rule.
 func (r Probes) Check(w manifest.Workload) []Finding {
 	switch w.Object.Kind {
