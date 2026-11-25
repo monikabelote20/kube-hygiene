@@ -26,6 +26,7 @@ func Default() []Rule {
 	return []Rule{
 		Resources{},
 		ImageTag{},
+		Probes{},
 	}
 }
 
