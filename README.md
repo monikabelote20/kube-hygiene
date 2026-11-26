@@ -2,7 +2,6 @@
 
 [![ci](https://github.com/monikabelote20/kube-hygiene/actions/workflows/ci.yml/badge.svg)](https://github.com/monikabelote20/kube-hygiene/actions/workflows/ci.yml)
 
-_Built and maintained with an AI coding agent (Claude, by Anthropic) under the direction of [@monikabelote20](https://github.com/monikabelote20)._
 
 A small, zero-dependency Go CLI that lints Kubernetes workloads for reliability and security gaps.
 
