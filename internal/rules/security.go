@@ -17,6 +17,9 @@ type RunAsRoot struct{}
 // ID implements Rule.
 func (RunAsRoot) ID() string { return "run-as-root" }
 
+// Severity implements Rule.
+func (RunAsRoot) Severity() Severity { return Warning }
+
 // Description implements Rule.
 func (RunAsRoot) Description() string {
 	return "Containers should set runAsNonRoot: true or a non-zero runAsUser"
@@ -68,6 +71,9 @@ type Privileged struct{}
 // ID implements Rule.
 func (Privileged) ID() string { return "privileged" }
 
+// Severity implements Rule.
+func (Privileged) Severity() Severity { return Error }
+
 // Description implements Rule.
 func (Privileged) Description() string {
 	return "Containers should not be privileged and should set allowPrivilegeEscalation: false"
@@ -102,6 +108,9 @@ type HostAccess struct{}
 
 // ID implements Rule.
 func (HostAccess) ID() string { return "host-access" }
+
+// Severity implements Rule.
+func (HostAccess) Severity() Severity { return Error }
 
 // Description implements Rule.
 func (HostAccess) Description() string {

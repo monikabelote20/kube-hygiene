@@ -16,6 +16,9 @@ type Probes struct{}
 // ID implements Rule.
 func (Probes) ID() string { return "probes" }
 
+// Severity implements Rule.
+func (Probes) Severity() Severity { return Warning }
+
 // Description implements Rule.
 func (Probes) Description() string {
 	return "Long-running containers should define readiness and liveness probes"

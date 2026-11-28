@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/monikabelote20/kube-hygiene/internal/rules"
@@ -23,6 +24,8 @@ type Report struct {
 	Findings  []rules.Finding
 	Rules     []rules.Rule
 	Version   string
+	// Suppressed counts findings skipped via the ignore annotation.
+	Suppressed int
 }
 
 // Write renders the report in the given format.
@@ -47,13 +50,35 @@ func Text(w io.Writer, r Report) error {
 		if f.Container != "" {
 			container = "[" + f.Container + "]"
 		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", f.Rule, f.Workload, container, f.Message)
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", f.Severity, f.Rule, f.Workload, container, f.Message)
 	}
 	if err := tw.Flush(); err != nil {
 		return err
 	}
-	_, err := fmt.Fprintf(w, "\n%d workloads checked, %d findings\n", r.Workloads, len(r.Findings))
+	_, err := fmt.Fprintf(w, "\n%d workloads checked, %s\n", r.Workloads, summaryLine(r))
 	return err
+}
+
+// summaryLine reads like "7 findings (2 error, 5 warning), 1 suppressed".
+func summaryLine(r Report) string {
+	counts := map[rules.Severity]int{}
+	for _, f := range r.Findings {
+		counts[f.Severity]++
+	}
+	var parts []string
+	for _, s := range []rules.Severity{rules.Error, rules.Warning, rules.Info} {
+		if counts[s] > 0 {
+			parts = append(parts, fmt.Sprintf("%d %s", counts[s], s))
+		}
+	}
+	line := fmt.Sprintf("%d findings", len(r.Findings))
+	if len(parts) > 0 {
+		line += " (" + strings.Join(parts, ", ") + ")"
+	}
+	if r.Suppressed > 0 {
+		line += fmt.Sprintf(", %d suppressed", r.Suppressed)
+	}
+	return line
 }
 
 type jsonReport struct {
@@ -64,15 +89,18 @@ type jsonReport struct {
 }
 
 type jsonSummary struct {
-	Total  int            `json:"total"`
-	ByRule map[string]int `json:"by_rule"`
+	Total      int            `json:"total"`
+	Suppressed int            `json:"suppressed"`
+	ByRule     map[string]int `json:"by_rule"`
+	BySeverity map[string]int `json:"by_severity"`
 }
 
 // JSON writes a machine-readable report.
 func JSON(w io.Writer, r Report) error {
-	byRule := map[string]int{}
+	byRule, bySeverity := map[string]int{}, map[string]int{}
 	for _, f := range r.Findings {
 		byRule[f.Rule]++
+		bySeverity[f.Severity.String()]++
 	}
 	findings := r.Findings
 	if findings == nil {
@@ -83,8 +111,13 @@ func JSON(w io.Writer, r Report) error {
 	return enc.Encode(jsonReport{
 		Source:    r.Source,
 		Workloads: r.Workloads,
-		Summary:   jsonSummary{Total: len(r.Findings), ByRule: byRule},
-		Findings:  findings,
+		Summary: jsonSummary{
+			Total:      len(r.Findings),
+			Suppressed: r.Suppressed,
+			ByRule:     byRule,
+			BySeverity: bySeverity,
+		},
+		Findings: findings,
 	})
 }
 
@@ -167,7 +200,7 @@ func SARIF(w io.Writer, r Report) error {
 		driver.Rules = append(driver.Rules, sarifRule{
 			ID:               rule.ID(),
 			ShortDescription: sarifMessage{Text: rule.Description()},
-			DefaultConfig:    sarifConfig{Level: "warning"},
+			DefaultConfig:    sarifConfig{Level: sarifLevel(rule.Severity())},
 		})
 	}
 	sort.Slice(driver.Rules, func(i, j int) bool { return driver.Rules[i].ID < driver.Rules[j].ID })
@@ -180,7 +213,7 @@ func SARIF(w io.Writer, r Report) error {
 		}
 		results = append(results, sarifResult{
 			RuleID:  f.Rule,
-			Level:   "warning",
+			Level:   sarifLevel(f.Severity),
 			Message: sarifMessage{Text: name + ": " + f.Message},
 			Locations: []sarifLocation{{
 				PhysicalLocation: sarifPhysical{
@@ -200,6 +233,18 @@ func SARIF(w io.Writer, r Report) error {
 		Version: "2.1.0",
 		Runs:    []sarifRun{{Tool: sarifTool{Driver: driver}, Results: results}},
 	})
+}
+
+// sarifLevel maps severities onto SARIF result levels.
+func sarifLevel(s rules.Severity) string {
+	switch s {
+	case rules.Error:
+		return "error"
+	case rules.Info:
+		return "note"
+	default:
+		return "warning"
+	}
 }
 
 // fingerprint stays stable across runs so code scanning can track an alert.

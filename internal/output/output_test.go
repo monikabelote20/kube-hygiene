@@ -16,8 +16,8 @@ func sample() Report {
 		Version:   "1.2.3",
 		Rules:     rules.Default(),
 		Findings: []rules.Finding{
-			{Rule: "resources", Workload: "Deployment/shop/api", Container: "api", Message: "missing limits.memory"},
-			{Rule: "image-tag", Workload: "Deployment/shop/api", Container: "api", Message: "image api uses the :latest tag"},
+			{Rule: "resources", Severity: rules.Warning, Workload: "Deployment/shop/api", Container: "api", Message: "missing limits.memory"},
+			{Rule: "privileged", Severity: rules.Error, Workload: "Deployment/shop/api", Container: "api", Message: "privileged: true"},
 		},
 	}
 }
@@ -28,10 +28,10 @@ func TestTextAlignsColumnsAndSummarises(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := buf.String()
-	if !strings.Contains(out, "resources  Deployment/shop/api  [api]  missing limits.memory") {
+	if !strings.Contains(out, "warning  resources   Deployment/shop/api  [api]  missing limits.memory") {
 		t.Errorf("unexpected text output:\n%s", out)
 	}
-	if !strings.HasSuffix(out, "2 workloads checked, 2 findings\n") {
+	if !strings.HasSuffix(out, "2 workloads checked, 2 findings (1 error, 1 warning)\n") {
 		t.Errorf("missing summary:\n%s", out)
 	}
 }
@@ -45,7 +45,8 @@ func TestJSONReport(t *testing.T) {
 	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	if got.Summary.Total != 2 || got.Summary.ByRule["resources"] != 1 || got.Source != "workloads.json" {
+	if got.Summary.Total != 2 || got.Summary.ByRule["resources"] != 1 || got.Summary.BySeverity["error"] != 1 ||
+		got.Source != "workloads.json" {
 		t.Errorf("unexpected report: %+v", got)
 	}
 }
@@ -85,8 +86,11 @@ func TestSARIFStructure(t *testing.T) {
 	if res.RuleID != "resources" || res.Locations[0].PhysicalLocation.ArtifactLocation.URI != "workloads.json" {
 		t.Errorf("bad result: %+v", res)
 	}
-	if res.Message.Text != "Deployment/shop/api/api: missing limits.memory" {
-		t.Errorf("message = %q", res.Message.Text)
+	if res.Message.Text != "Deployment/shop/api/api: missing limits.memory" || res.Level != "warning" {
+		t.Errorf("unexpected result: %+v", res)
+	}
+	if run.Results[1].Level != "error" {
+		t.Errorf("privileged should map to error, got %q", run.Results[1].Level)
 	}
 }
 
@@ -102,5 +106,13 @@ func TestFingerprintIsStableAndDistinct(t *testing.T) {
 func TestUnknownFormat(t *testing.T) {
 	if err := Write(&bytes.Buffer{}, "yaml", sample()); err == nil {
 		t.Error("expected an error for an unknown format")
+	}
+}
+
+func TestSummaryLineMentionsSuppressed(t *testing.T) {
+	r := sample()
+	r.Suppressed = 3
+	if got := summaryLine(r); got != "2 findings (1 error, 1 warning), 3 suppressed" {
+		t.Errorf("summaryLine = %q", got)
 	}
 }

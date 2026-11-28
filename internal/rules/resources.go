@@ -18,6 +18,9 @@ type Resources struct{}
 // ID implements Rule.
 func (Resources) ID() string { return "resources" }
 
+// Severity implements Rule.
+func (Resources) Severity() Severity { return Warning }
+
 // Description implements Rule.
 func (Resources) Description() string {
 	return "Containers should set CPU and memory requests and a memory limit"

@@ -15,15 +15,15 @@ kube-hygiene -f rendered.json -format json
 ```
 
 ```
-image-tag    CronJob/ops/backup               [backup]  image bitnami/kubectl:latest uses the :latest tag
-privileged   CronJob/ops/backup               [backup]  allowPrivilegeEscalation is not false
-resources    CronJob/ops/backup               [backup]  missing requests.memory, limits.memory
-run-as-root  CronJob/ops/backup               [backup]  may run as root: set runAsNonRoot: true or a non-zero runAsUser
-host-access  DaemonSet/monitoring/node-agent            volume "proc" mounts host path /proc
-resources    Deployment/shop/api              [api]     missing requests.cpu, limits.memory
-probes       Deployment/shop/worker           [worker]  missing livenessProbe
+warning  image-tag    CronJob/ops/backup               [backup]  image bitnami/kubectl:latest uses the :latest tag
+error    privileged   CronJob/ops/backup               [backup]  allowPrivilegeEscalation is not false
+warning  resources    CronJob/ops/backup               [backup]  missing requests.memory, limits.memory
+warning  run-as-root  CronJob/ops/backup               [backup]  may run as root: set runAsNonRoot: true or a non-zero runAsUser
+error    host-access  DaemonSet/monitoring/node-agent            volume "proc" mounts host path /proc
+warning  resources    Deployment/shop/api              [api]     missing requests.cpu, limits.memory
+warning  probes       Deployment/shop/worker           [worker]  missing livenessProbe
 
-14 workloads checked, 7 findings
+14 workloads checked, 7 findings (2 error, 5 warning)
 ```
 
 ## Output formats
@@ -44,17 +44,42 @@ tracked across runs instead of reappearing as new.
 
 ## Rules
 
-| Rule | What it checks |
-|------|----------------|
-| `resources` | Every container (including init containers) sets CPU and memory requests and a memory limit. CPU limits are not required on purpose. |
-| `image-tag` | Images are not untagged or `:latest`. Digest-pinned images (`@sha256:...`) always pass. |
-| `probes` | Long-running containers define readiness and liveness probes. Jobs, CronJobs and init containers are skipped. |
-| `run-as-root` | Containers set `runAsNonRoot: true` or a non-zero `runAsUser` (container level, or inherited from the pod). `runAsUser: 0` is reported explicitly. |
-| `privileged` | Containers are not `privileged` and set `allowPrivilegeEscalation: false` (it defaults to true when unset). |
-| `host-access` | Pods don't mount `hostPath` volumes or use `hostNetwork`. |
+| Rule | Severity | What it checks |
+|------|----------|----------------|
+| `resources` | warning | Every container (including init containers) sets CPU and memory requests and a memory limit. CPU limits are not required on purpose. |
+| `image-tag` | warning | Images are not untagged or `:latest`. Digest-pinned images (`@sha256:...`) always pass. |
+| `probes` | warning | Long-running containers define readiness and liveness probes. Jobs, CronJobs and init containers are skipped. |
+| `run-as-root` | warning | Containers set `runAsNonRoot: true` or a non-zero `runAsUser` (container level, or inherited from the pod). `runAsUser: 0` is reported explicitly. |
+| `privileged` | error | Containers are not `privileged` and set `allowPrivilegeEscalation: false` (it defaults to true when unset). |
+| `host-access` | error | Pods don't mount `hostPath` volumes or use `hostNetwork`. |
 
 Supported kinds: Pod, Deployment, StatefulSet, DaemonSet, ReplicaSet, Job, CronJob. Other objects
 in the input are ignored.
+
+## Using it in CI
+
+| Flag | Meaning |
+|------|---------|
+| `-min-severity info\|warning\|error` | Hide findings below this level (default `info`) |
+| `-fail-on none\|info\|warning\|error` | Exit with status 1 if any finding is at or above this level (default `none`) |
+
+Exit codes: `0` nothing blocking, `1` findings at or above `-fail-on`, `2` bad flags or unreadable input.
+
+```bash
+# block the pipeline on security problems, report the rest
+kube-hygiene -f rendered.json -fail-on error
+```
+
+A workload can opt out of specific rules with an annotation, for example a node agent that
+genuinely needs host access:
+
+```yaml
+metadata:
+  annotations:
+    kube-hygiene.io/ignore: "host-access, run-as-root"   # or "*" for every rule
+```
+
+Suppressed findings are counted in the summary line so they stay visible.
 
 ## Install
 

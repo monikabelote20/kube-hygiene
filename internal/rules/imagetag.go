@@ -16,6 +16,9 @@ type ImageTag struct{}
 // ID implements Rule.
 func (ImageTag) ID() string { return "image-tag" }
 
+// Severity implements Rule.
+func (ImageTag) Severity() Severity { return Warning }
+
 // Description implements Rule.
 func (ImageTag) Description() string {
 	return "Images should be pinned to a tag other than latest, or to a digest"
