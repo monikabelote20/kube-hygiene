@@ -27,17 +27,46 @@ type Metadata struct {
 
 // PodSpec is the part of a pod template the rules inspect.
 type PodSpec struct {
-	Containers     []Container `json:"containers"`
-	InitContainers []Container `json:"initContainers"`
+	Containers      []Container         `json:"containers"`
+	InitContainers  []Container         `json:"initContainers"`
+	SecurityContext *PodSecurityContext `json:"securityContext"`
+	Volumes         []Volume            `json:"volumes"`
+	HostNetwork     bool                `json:"hostNetwork"`
+}
+
+// PodSecurityContext holds pod-level defaults that containers inherit.
+type PodSecurityContext struct {
+	RunAsNonRoot *bool  `json:"runAsNonRoot"`
+	RunAsUser    *int64 `json:"runAsUser"`
+}
+
+// SecurityContext holds container-level settings; set fields override the pod's.
+type SecurityContext struct {
+	Privileged               *bool  `json:"privileged"`
+	AllowPrivilegeEscalation *bool  `json:"allowPrivilegeEscalation"`
+	RunAsNonRoot             *bool  `json:"runAsNonRoot"`
+	RunAsUser                *int64 `json:"runAsUser"`
+}
+
+// Volume is a pod volume; only hostPath matters to the rules today.
+type Volume struct {
+	Name     string    `json:"name"`
+	HostPath *HostPath `json:"hostPath"`
+}
+
+// HostPath is a volume backed by a directory on the node.
+type HostPath struct {
+	Path string `json:"path"`
 }
 
 // Container describes one container in a pod spec.
 type Container struct {
-	Name           string           `json:"name"`
-	Image          string           `json:"image"`
-	Resources      Resources        `json:"resources"`
-	LivenessProbe  *json.RawMessage `json:"livenessProbe"`
-	ReadinessProbe *json.RawMessage `json:"readinessProbe"`
+	Name            string           `json:"name"`
+	Image           string           `json:"image"`
+	Resources       Resources        `json:"resources"`
+	LivenessProbe   *json.RawMessage `json:"livenessProbe"`
+	ReadinessProbe  *json.RawMessage `json:"readinessProbe"`
+	SecurityContext *SecurityContext `json:"securityContext"`
 }
 
 // Resources holds container requests and limits, e.g. {"cpu": "100m"}.

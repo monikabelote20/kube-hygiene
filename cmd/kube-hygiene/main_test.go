@@ -21,7 +21,7 @@ func TestRunReportsFindingsFromStdin(t *testing.T) {
 	if !strings.Contains(out.String(), "Deployment/shop/api  [api]  missing requests.cpu") {
 		t.Errorf("unexpected output:\n%s", out.String())
 	}
-	if !strings.Contains(out.String(), "1 workloads checked, 2 findings") {
+	if !strings.Contains(out.String(), "1 workloads checked, 4 findings") {
 		t.Errorf("missing summary line:\n%s", out.String())
 	}
 }

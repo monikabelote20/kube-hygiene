@@ -29,6 +29,9 @@ func Default() []Rule {
 		Resources{},
 		ImageTag{},
 		Probes{},
+		RunAsRoot{},
+		Privileged{},
+		HostAccess{},
 	}
 }
 
